@@ -1,35 +1,33 @@
 export function download(data, strFileName, strMimeType) {
-	var self = window, //这个脚本只适用于浏览器
-		defaultMime = 'application/octet-stream', // 这个默认mime也会触发iframe下载
-		mimeType = strMimeType || defaultMime,
-		payload = data,
-		url = payload,
-		anchor = document.createElement('a'),
+	var self = window, // 当前作用域指向浏览器 window
+		defaultMime = 'application/octet-stream', // 默认 MIME 类型
+		mimeType = strMimeType || defaultMime, // 如果未提供 MIME 类型则使用默认值
+		payload = data, // 初始数据
+		url = payload, // 若传入的是 URL
+		anchor = document.createElement('a'), // 创建临时 a 标签用于下载
 		toString = function (a) {
-			return String(a);
+			return String(a); // 转换为字符串的函数
 		},
-		myBlob = self.Blob || self.MozBlob || self.WebKitBlob || toString,
-		fileName = strFileName || 'download',
+		myBlob = self.Blob || self.MozBlob || self.WebKitBlob || toString, // 兼容旧浏览器的 Blob
+		fileName = strFileName || 'download', // 默认文件名
 		blob,
 		reader;
+
+	// 绑定 Blob 构造函数到当前上下文
 	myBlob = myBlob.call ? myBlob.bind(self) : Blob;
 
+	// 支持参数反向传入：download.bind(true, 'text/plain', 'test.txt')(data)
 	if (String(this) === 'true') {
-		//反向参数，允许下载。绑定(true， "text/xml"， "export.xml")作为回调
 		payload = [payload, mimeType];
 		mimeType = payload[0];
 		payload = payload[1];
 	}
 
+	// 如果传入的是 URL 且长度不长，尝试用 Ajax 下载 Blob
 	if (url && url.length < 2048) {
-		// 如果没有文件名和mime，假设url作为唯一的参数被传递
-		fileName = url.split('/').pop().split('?')[0];
-		anchor.href = url; // 将href prop赋给临时锚
-		debugger;
+		fileName = url.split('/').pop().split('?')[0]; // 提取文件名
+		anchor.href = url;
 
-		// if (anchor.href.indexOf(escapeUrl) !== -1) {
-		// 如果浏览器认为它是一个潜在有效的url路径:
-		// debugger;
 		var ajax = new XMLHttpRequest();
 		ajax.open('GET', url, true);
 		ajax.responseType = 'blob';
@@ -38,54 +36,58 @@ export function download(data, strFileName, strMimeType) {
 		};
 		setTimeout(function () {
 			ajax.send();
-		}, 0); // 允许使用return设置自定义ajax头:
-
+		}, 0);
 		return ajax;
-		// } // 结束，如果有效的url?
-	} //如果url结束?
+	}
 
-	//马上去下载dataURLs
-
+	// 如果是 data URL（如 base64）
 	if (/^data\:[\w+\-]+\/[\w+\-]+[,;]/.test(payload)) {
 		if (payload.length > 1024 * 1024 * 1.999 && myBlob !== toString) {
+			// 如果数据过大，转为 Blob 对象
 			payload = dataUrlToBlob(payload);
 			mimeType = payload.type || defaultMime;
 		} else {
-			return navigator.msSaveBlob // IE10不能做[下载]，只有Blobs:
+			// 直接下载 data URL
+			return navigator.msSaveBlob
 				? navigator.msSaveBlob(dataUrlToBlob(payload), fileName)
-				: saver(payload); //其他所有人都可以保存未处理的数据
+				: saver(payload);
 		}
-	} //结束如果dataURL通过?
+	}
 
+	// 如果 payload 是字符串或普通对象，包装成 Blob
 	blob = payload instanceof myBlob ? payload : new myBlob([payload], { type: mimeType });
+
+	/**
+	 * 将 data URL 转为 Blob 对象
+	 */
 	function dataUrlToBlob(strUrl) {
 		var parts = strUrl.split(/[:;,]/),
 			type = parts[1],
-			decoder = parts[2] == 'base64' ? atob : decodeURIComponent,
+			decoder = parts[2] === 'base64' ? atob : decodeURIComponent,
 			binData = decoder(parts.pop()),
 			mx = binData.length,
 			i = 0,
 			uiArr = new Uint8Array(mx);
 
 		for (i; i < mx; ++i) uiArr[i] = binData.charCodeAt(i);
-
 		return new myBlob([uiArr], { type: type });
 	}
 
+	/**
+	 * 主下载逻辑
+	 */
 	function saver(url, winMode) {
+		// 现代浏览器支持 a.download
 		if ('download' in anchor) {
-			//html5 A(下载)
-
 			anchor.href = url;
 			anchor.setAttribute('download', fileName);
-			anchor.className = 'download-js-link';
-			anchor.innerHTML = 'downloading...';
 			anchor.style.display = 'none';
 			document.body.appendChild(anchor);
 			setTimeout(function () {
-				anchor.click();
+				anchor.click(); // 模拟点击
 				document.body.removeChild(anchor);
 				if (winMode === true) {
+					// 释放内存
 					setTimeout(function () {
 						self.URL.revokeObjectURL(anchor.href);
 					}, 250);
@@ -94,64 +96,55 @@ export function download(data, strFileName, strMimeType) {
 			return true;
 		}
 
-		// 处理非[下载]safari，我们可以:
-
+		// Safari 不支持 download 属性的兼容处理
 		if (/(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//.test(navigator.userAgent)) {
 			url = url.replace(/^data:([\w\/\-\+]+)/, defaultMime);
 			if (!window.open(url)) {
-				// 弹出阻止，提供直接下载:
-
-				if (confirm('Displaying New Document\n\nUse Save As... to download, then click back to return to this page.')) {
+				if (confirm('请使用右键另存为下载该文件，然后返回页面。')) {
 					location.href = url;
 				}
 			}
 			return true;
 		}
 
-		//做iframe dataURL下载(旧的ch+FF):
-
+		// 旧版浏览器使用 iframe 下载
 		var f = document.createElement('iframe');
 		document.body.appendChild(f);
 
 		if (!winMode) {
-			// 强制一个mime将下载:
-
 			url = 'data:' + url.replace(/^data:([\w\/\-\+]+)/, defaultMime);
 		}
 		f.src = url;
 		setTimeout(function () {
 			document.body.removeChild(f);
 		}, 333);
-	} //end saver
+	}
 
+	// 兼容 IE10+
 	if (navigator.msSaveBlob) {
-		//IE10+:(有Blob，但没有[下载]或URL)
-
 		return navigator.msSaveBlob(blob, fileName);
 	}
 
+	// 现代浏览器：使用 Blob URL
 	if (self.URL) {
-		// 简单快速和现代的方式使用Blob和URL:
-
 		saver(self.URL.createObjectURL(blob), true);
 	} else {
-		//处理non-Blob () + non-URL浏览器:
-
+		// 如果不支持 Blob URL，用 FileReader 读取后下载
 		if (typeof blob === 'string' || blob.constructor === toString) {
 			try {
 				return saver('data:' + mimeType + ';base64,' + self.btoa(blob));
-			} catch (y) {
+			} catch (e) {
 				return saver('data:' + mimeType + ',' + encodeURIComponent(blob));
 			}
 		}
 
-		// Blob但不支持URL:
-
+		// 使用 FileReader 读取 Blob 内容为 data URL
 		reader = new FileReader();
 		reader.onload = function (e) {
 			saver(this.result);
 		};
 		reader.readAsDataURL(blob);
 	}
+
 	return true;
-} /*结束下载()*/
+}
