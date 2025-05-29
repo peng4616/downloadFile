@@ -24,4 +24,52 @@
 ```js
 import { download } from './download.js';
 
+1. 下载文本为 .txt 文件
+download('Hello world!', 'example.txt', 'text/plain');
+
+2. 下载 base64 图片
+const blob = new Blob(['some text'], { type: 'text/plain' });
+download(blob, 'file.txt', 'text/plain');
+
+3. 下载 Blob 文件
+const blob = new Blob(['some text'], { type: 'text/plain' });
+download(blob, 'file.txt', 'text/plain');
+
+
+4. 下载远程文件
+ download('https://example.com/file.pdf');
+// 自动通过 XHR 获取 Blob 并下载
+
 ```
+
+⚙️ API 说明
+
+```js
+download(data, fileName, mimeType);
+
+
+```
+| 参数         | 类型               | 说明                                     |
+| ---------- | ---------------- | -------------------------------------- |
+| `data`     | `String \| Blob` | 可下载的内容，可以是字符串、dataURL、Blob、URL         |
+| `fileName` | `String`（可选）     | 下载保存的文件名，默认会从 URL 中提取                  |
+| `mimeType` | `String`（可选）     | MIME 类型，默认是 `application/octet-stream` |
+
+
+🌐 浏览器兼容性
+
+| 浏览器     | 支持情况                    |
+| ------- | ----------------------- |
+| Chrome  | ✅ 支持                    |
+| Firefox | ✅ 支持                    |
+| Safari  | ✅ 支持（dataURL 下载时采用弹窗提示） |
+| Edge    | ✅ 支持                    |
+| IE 10+  | ✅ 支持                    |
+
+
+📝 License
+MIT License © 2025
+
+欢迎自由使用与修改！
+
+
